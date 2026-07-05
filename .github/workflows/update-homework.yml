@@ -3,6 +3,12 @@ name: Update Homework via API
 on:
   repository_dispatch:
     types: [update_homework]
+  workflow_dispatch:
+    inputs:
+      text:
+        description: '作业文字'
+        required: true
+        type: string
 
 permissions:
   contents: write
@@ -22,7 +28,8 @@ jobs:
           DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
           SKIP_GIT_CLONE: '1'
         run: |
-          python3 scripts/update_homework.py "${{ github.event.client_payload.text }}"
+          TEXT="${{ github.event.client_payload.text || github.event.inputs.text }}"
+          python3 scripts/update_homework.py "$TEXT"
 
       - name: Commit and push
         run: |

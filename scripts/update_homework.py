@@ -29,41 +29,18 @@ SKIP_GIT_CLONE = os.environ.get("SKIP_GIT_CLONE", "") == "1"
 WORK_DIR = Path.cwd() if SKIP_GIT_CLONE else Path(os.environ.get("WORK_DIR", "/tmp/homework-record"))
 
 # ============ AI System Prompt ============
-SYSTEM_PROMPT = """You are a homework assistant for elementary school students. Extract homework items from a parent's message and return structured JSON.
+SYSTEM_PROMPT = """你是小学作业整理助手。从家长消息中提取作业，返回结构化JSON。
 
-Rules:
-1. date: Infer the date from the text if mentioned (e.g. "today's homework", "Wednesday"). Default to the provided date.
-2. dayOfWeek: Compute from the date (e.g. "Monday", "Tuesday").
-3. Supported subjects: Chinese, Math, English, Science, Morality, Art, Music, PE, Labor, IT, Calligraphy, etc.
-4. Each subject contains a "tasks" array with "title" and "estimatedMinutes".
-5. estimatedMinutes for elementary school students:
-   - Handwriting/calligraphy drill: 10-15 min
-   - Mental math/arithmetic: 10-15 min
-   - Workbook/exercise book: 15-20 min
-   - Reading/reciting: 15-20 min
-   - Exam paper: 30-40 min
-   - Essay/diary: 25-30 min
-   - Preview/review: 10-15 min
-   - App homework: 10-15 min
-   - Crafts/drawing: 20-30 min
-   - PE/sports: 10-20 min
-   - Unknown type: default 15 min
-6. If a task doesn't specify a subject, infer it from the content.
-7. Keep titles concise but include key info (page numbers, chapters, names).
+规则:
+1. date: 推断日期，默认用提供的日期。
+2. dayOfWeek: 根据日期计算，中文输出如"星期一"。
+3. 学科名用中文: 语文、数学、英语、科学、道法、美术、音乐、体育、劳动、信息、书法等。
+4. 每科含 tasks 数组，每项有 title 和 estimatedMinutes。
+5. title 用中文，保留原文关键信息（页码、章节）。
+6. estimatedMinutes 小学生标准: 练字10-15, 口算10-15, 练习册15-20, 阅读15-20, 试卷30-40, 作文25-30, 预习10-15, 手工20-30, 体育10-20, 默认15。
 
-Output format (JSON only, no extra text):
-{
-  "date": "YYYY-MM-DD",
-  "dayOfWeek": "Monday",
-  "subjects": [
-    {
-      "name": "Chinese",
-      "tasks": [
-        {"title": "Recite poem", "estimatedMinutes": 15}
-      ]
-    }
-  ]
-}"""
+只返回JSON，不要额外文字:
+{"date":"YYYY-MM-DD","dayOfWeek":"星期一","subjects":[{"name":"语文","tasks":[{"title":"背诵《静夜思》","estimatedMinutes":15}]}]}"""
 
 
 def call_deepseek(text, target_date):
@@ -135,27 +112,6 @@ def parse_llm_response(content):
 
         if "date" not in parsed:
             parsed["date"] = datetime.now().strftime("%Y-%m-%d")
-
-        # Map AI output names back to Chinese
-        name_map = {
-            "Chinese": "语文", "Math": "数学", "English": "英语",
-            "Science": "科学", "Morality": "道法", "Art": "美术",
-            "Music": "音乐", "PE": "体育", "Labor": "劳动",
-            "IT": "信息", "Calligraphy": "书法",
-        }
-        for subj in parsed["subjects"]:
-            if subj["name"] in name_map:
-                subj["name"] = name_map[subj["name"]]
-
-        # Map day names
-        day_map = {
-            "Monday": "星期一", "Tuesday": "星期二",
-            "Wednesday": "星期三", "Thursday": "星期四",
-            "Friday": "星期五", "Saturday": "星期六",
-            "Sunday": "星期日",
-        }
-        if parsed.get("dayOfWeek") in day_map:
-            parsed["dayOfWeek"] = day_map[parsed["dayOfWeek"]]
 
         return parsed
     except (json.JSONDecodeError, ValueError) as e:
