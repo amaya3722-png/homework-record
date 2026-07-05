@@ -1,0 +1,26 @@
+name: Update Homework via API
+
+on:
+  repository_dispatch:
+    types: [update_homework]
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Parse and update homework
+        env:
+          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+        run: |
+          python3 scripts/update_homework.py "${{ github.event.client_payload.text }}"
+
+      # 脚本已经做了 git push，这里不需要额外操作

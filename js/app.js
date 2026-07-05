@@ -298,7 +298,7 @@ function loadData() {
         // 将所有保存的学科颜色添加到SUBJECT_COLORS对象
         Object.assign(SUBJECT_COLORS, parsedColors);
     }
-    
+
     // 加载任务数据（按用户分组）
     const savedTasks = localStorage.getItem(`timeManagementTasks_${currentUserId}`);
     if (savedTasks) {
@@ -308,7 +308,23 @@ function loadData() {
         tasks = [];
         saveData();
     }
-    
+
+    // 异步加载共享作业数据（data.json），合并到本地 tasks
+    if (typeof SharedDataLoader !== 'undefined') {
+        SharedDataLoader.fetchSharedData().then(function(sharedData) {
+            if (!sharedData) return;
+            var result = SharedDataLoader.mergeSharedData(tasks, sharedData);
+            if (result.addedCount > 0) {
+                tasks = result.tasks;
+                saveData();
+                renderTaskList();  // 刷新界面
+                updateStats();
+                renderCalendar();  // 更新日历标记
+                console.log('[DataLoader] 从共享数据新增 ' + result.addedCount + ' 条作业');
+            }
+        });
+    }
+
     // 加载小心愿数据（按用户分组）
     const savedWishes = localStorage.getItem(`timeManagementWishes_${currentUserId}`);
     if (savedWishes) {
