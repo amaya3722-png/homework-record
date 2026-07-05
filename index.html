@@ -1,0 +1,1186 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>作业积分小程序</title>
+    <!-- 网站图标 -->
+    <link rel="apple-touch-icon" sizes="180x180" href="/static/images/favicon/apple-touch-icon.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="/static/images/favicon/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="/static/images/favicon/favicon-16x16.png">
+    <link rel="manifest" href="/static/images/favicon/site.webmanifest">
+    <!-- PWA相关meta标签 -->
+    <meta name="description" content="帮助学生记录作业完成情况、学习时间和积分兑换心愿的应用">
+    <meta name="theme-color" content="#4CAF50">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="作业积分">
+    <link rel="apple-touch-startup-image" href="/static/images/favicon/apple-touch-icon.png">
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome -->
+    <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.8/dist/chart.umd.min.js"></script>
+    <!-- Tesseract.js OCR -->
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+    <!-- 配置Tailwind CSS -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#4CAF50',
+                        secondary: '#8BC34A',
+                        accent: '#CDDC39',
+                        light: '#E8F5E9',
+                        dark: '#2E7D32',
+                        textPrimary: '#212121',
+                        textSecondary: '#757575'
+                    },
+                    fontFamily: {
+                        sans: ['PingFang SC', 'Microsoft YaHei', 'sans-serif'],
+                    },
+                    boxShadow: {
+                        'card': '0 2px 10px rgba(0, 0, 0, 0.08)',
+                        'button': '0 4px 6px rgba(76, 175, 80, 0.2)',
+                    }
+                },
+            }
+        }
+    </script>
+    <style type="text/tailwindcss">
+        @layer utilities {
+            .content-auto {
+                content-visibility: auto;
+            }
+            .text-shadow {
+                text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+            }
+            .card-hover {
+                transition: transform 0.2s, box-shadow 0.2s;
+            }
+            .card-hover:hover {
+                transform: translateY(-2px);
+                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+            }
+            .scrollbar-hide::-webkit-scrollbar {
+                display: none;
+            }
+            .scrollbar-hide {
+                -ms-overflow-style: none;
+                scrollbar-width: none;
+            }
+            @keyframes fadeOut {
+                0% { opacity: 1; }
+                100% { opacity: 0; }
+            }
+            .animate-fadeOut {
+                animation: fadeOut 1.5s ease-in-out forwards;
+            }
+            @keyframes spin {
+                0% { transform: rotate(0deg); }
+                100% { transform: rotate(360deg); }
+            }
+            .animate-spin {
+                animation: spin 1s linear infinite;
+            }
+            @keyframes pulse-dot {
+                0%, 100% { opacity: 1; }
+                50% { opacity: 0.3; }
+            }
+            .animate-pulse-dot {
+                animation: pulse-dot 1.4s ease-in-out infinite;
+            }
+            /* 语音播放按钮 */
+            @keyframes voice-pulse {
+                0%, 100% { transform: scale(1); }
+                50% { transform: scale(1.2); }
+            }
+            .voice-task-btn {
+                min-width: 36px;
+                min-height: 36px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                flex-shrink: 0;
+            }
+            .voice-task-btn.voice-speaking {
+                animation: voice-pulse 1.2s ease-in-out infinite;
+                background-color: #eff6ff;
+            }
+        }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen text-textPrimary font-sans">
+    <!-- 顶部导航栏 -->
+    <header class="bg-primary text-white shadow-md">
+        <div class="container mx-auto px-4 py-3 flex items-center justify-between">
+            <div class="flex items-center space-x-2">
+                <i class="fa fa-calendar-check-o text-xl"></i>
+                <h1 class="text-xl font-bold">作业与积分</h1>
+            </div>
+            <div class="flex items-center space-x-4">
+                <!-- <button id="notificationBtn" class="relative p-2 rounded-full hover:bg-primary-dark transition-colors">
+                    <i class="fa fa-bell-o"></i>
+                    <span class="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
+                </button> -->
+                <button id="userBtn" class="flex items-center space-x-2 p-1 rounded-full hover:bg-primary-dark transition-colors">
+                    <span id="navUserAvatar" class="text-xl">👨‍🎓</span>
+                    <span id="navUserName" class="hidden sm:inline">用户</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- 主内容区域 - 计划打卡页面 -->
+    <div id="calendar-page" class="container mx-auto px-4 py-3 pb-20">
+        <!-- 顶部数据统计 -->
+        <section class="grid grid-cols-5 gap-2 mb-4">
+            <div class="bg-white rounded-lg shadow-sm p-2 flex flex-col items-center justify-center">
+                <div class="text-primary text-xl mb-1"><i class="fa fa-book"></i></div>
+                <p class="text-textSecondary text-xs">日时长</p>
+                <p id="studyTime" class="text-lg font-bold">01:30</p>
+            </div>
+
+            <div class="bg-white rounded-lg shadow-sm p-3 flex flex-col items-center justify-center">
+                <div class="text-secondary text-xl mb-1"><i class="fa fa-tasks"></i></div>
+                <p class="text-textSecondary text-xs">任务数</p>
+                <p id="taskCount" class="text-lg font-bold">8</p>
+            </div>
+            <div class="bg-white rounded-lg shadow-sm p-3 flex flex-col items-center justify-center">
+                <div class="text-amber-500 text-xl mb-1"><i class="fa fa-money"></i></div>
+                <p class="text-textSecondary text-xs">日金币</p>
+                <p id="todayCoins" class="text-lg font-bold">0</p>
+            </div>
+            <div class="bg-white rounded-lg shadow-sm p-3 flex flex-col items-center justify-center">
+                <div class="text-dark text-xl mb-1"><i class="fa fa-trophy"></i></div>
+                <p class="text-textSecondary text-xs">完成率</p>
+                <p id="completionRate" class="text-lg font-bold">62%</p>
+            </div>
+            <div class="bg-white rounded-lg shadow-sm p-3 flex flex-col items-center justify-center">
+                <div class="text-amber-500 text-xl mb-1"><i class="fa fa-money"></i></div>
+                <p class="text-textSecondary text-xs">总金币</p>
+                <p id="totalCoins" class="text-lg font-bold">0</p>
+            </div>
+        </section>
+
+        <!-- 日历导航 -->
+        <section class="bg-white rounded-xl shadow-card p-3 mb-4">
+            <div class="flex items-center justify-between mb-3">
+                <button id="prevWeekBtn" class="p-2 rounded-full hover:bg-gray-100 transition-colors">
+                    <i class="fa fa-chevron-left text-textSecondary"></i>
+                </button>
+                <h2 id="currentWeek" class="text-base font-medium">2025年10月第41周</h2>
+                <div class="flex space-x-2">
+                    <button id="todayBtn" class="px-2 py-0.5 bg-primary/10 text-primary rounded-full text-xs font-medium hover:bg-primary/20 transition-colors">
+                        本周
+                    </button>
+                    <button id="nextWeekBtn" class="p-2 rounded-full hover:bg-gray-100 transition-colors">
+                        <i class="fa fa-chevron-right text-textSecondary"></i>
+                    </button>
+                </div>
+            </div>
+            
+            <!-- 星期标题 -->
+            <div class="grid grid-cols-7 gap-1 mb-1">
+                <div class="text-center text-textSecondary text-sm py-1">周一</div>
+                <div class="text-center text-textSecondary text-sm py-1">周二</div>
+                <div class="text-center text-textSecondary text-sm py-1">周三</div>
+                <div class="text-center text-textSecondary text-sm py-1">周四</div>
+                <div class="text-center text-textSecondary text-sm py-1">周五</div>
+                <div class="text-center text-textSecondary text-sm py-1">周六</div>
+                <div class="text-center text-textSecondary text-sm py-1">周日</div>
+            </div>
+            
+            <!-- 日期选择器 -->
+            <div id="calendarDays" class="grid grid-cols-7 gap-1">
+                <!-- 日期将通过JavaScript动态生成 -->
+            </div>
+            <!-- 日期快速导航 -->
+            <div class="flex items-center justify-between mt-3 pt-3 border-t border-gray-100">
+                <button id="prevDayBtn" class="p-2 rounded-full hover:bg-gray-100 transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center">
+                    <i class="fa fa-chevron-left text-textSecondary"></i>
+                </button>
+                <span id="dayNavDate" class="text-sm font-medium text-textPrimary px-2">2026年7月1日 星期三</span>
+                <button id="nextDayBtn" class="p-2 rounded-full hover:bg-gray-100 transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center">
+                    <i class="fa fa-chevron-right text-textSecondary"></i>
+                </button>
+            </div>
+        </section>
+
+        <!-- 总时长横幅 -->
+        <div id="aiTotalTimeBanner" class="bg-gradient-to-r from-purple-50 to-blue-50 rounded-xl shadow-card p-3 mb-4 hidden">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-2">
+                    <span class="text-lg">⏱️</span>
+                    <span class="text-sm font-medium text-textPrimary">预计总时长</span>
+                </div>
+                <span id="aiTotalTimeValue" class="text-lg font-bold text-purple-600">约 0 分钟</span>
+            </div>
+        </div>
+
+        <!-- AI 智能录入区域 -->
+        <section id="aiInputSection" class="mb-4">
+            <button id="aiToggleBtn" class="w-full bg-gradient-to-r from-purple-50 to-blue-50 rounded-xl shadow-card p-3 flex items-center justify-between hover:shadow-md transition-shadow min-h-[44px]">
+                <div class="flex items-center space-x-2">
+                    <span class="text-xl">🤖</span>
+                    <span class="font-medium text-textPrimary">AI 智能录入</span>
+                    <span class="text-xs text-textSecondary hidden sm:inline">粘贴作业通知或拍照识别</span>
+                </div>
+                <i id="aiToggleIcon" class="fa fa-chevron-down text-textSecondary transition-transform"></i>
+            </button>
+            <div id="aiInputBody" class="hidden mt-2 bg-white rounded-xl shadow-card p-4">
+                <!-- Mode Tabs -->
+                <div class="flex space-x-2 mb-3">
+                    <button id="aiTabText" class="flex-1 py-2 px-3 bg-purple-100 text-purple-700 rounded-lg text-sm font-medium min-h-[44px]">📋 文本粘贴</button>
+                    <button id="aiTabImage" class="flex-1 py-2 px-3 bg-gray-100 text-gray-500 rounded-lg text-sm font-medium min-h-[44px]">📷 图片识别</button>
+                </div>
+                <!-- Text Input Area -->
+                <div id="aiTextPanel">
+                    <textarea id="aiTextInput" class="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-300 min-h-[120px] text-sm" placeholder="在此粘贴老师发的作业通知...
+
+例如：
+语文：1.练字一课 2.阅读《小王子》第3章
+数学：完成练习册P25-26
+英语：背诵Unit 3单词"></textarea>
+                </div>
+                <!-- Image Upload Area -->
+                <div id="aiImagePanel" class="hidden">
+                    <div id="imageDropZone" class="border-2 border-dashed border-gray-300 rounded-xl p-6 text-center hover:border-purple-400 transition-colors cursor-pointer min-h-[120px] flex flex-col items-center justify-center">
+                        <i class="fa fa-cloud-upload text-3xl text-gray-300 mb-2"></i>
+                        <p class="text-sm text-textSecondary">点击或拖拽图片到此处</p>
+                        <p class="text-xs text-gray-400 mt-1">支持 JPG、PNG，可多张上传</p>
+                        <input type="file" id="aiImageInput" accept="image/*" multiple capture="environment" class="hidden">
+                    </div>
+                    <div id="imagePreviewList" class="mt-2 flex flex-wrap gap-2"></div>
+                    <button id="aiOcrBtn" class="mt-2 w-full py-2 bg-blue-100 text-blue-700 rounded-lg text-sm font-medium hover:bg-blue-200 transition-colors min-h-[44px]">
+                        <i class="fa fa-search mr-1"></i> 开始识别文字
+                    </button>
+                    <div id="ocrProgress" class="hidden mt-2">
+                        <div class="flex items-center space-x-2 text-sm text-textSecondary">
+                            <i class="fa fa-spinner animate-spin"></i>
+                            <span id="ocrProgressText">正在识别文字...</span>
+                        </div>
+                        <div class="mt-1 bg-gray-200 rounded-full h-2 overflow-hidden">
+                            <div id="ocrProgressBar" class="bg-purple-500 h-full rounded-full transition-all" style="width:0%"></div>
+                        </div>
+                    </div>
+                </div>
+                <!-- Action Buttons -->
+                <div class="mt-3 flex space-x-2">
+                    <button id="aiClearBtn" class="px-4 py-2 bg-gray-100 text-textSecondary rounded-lg text-sm hover:bg-gray-200 transition-colors min-h-[44px]">
+                        清空
+                    </button>
+                    <button id="aiProcessBtn" class="flex-1 py-2 px-4 bg-purple-600 text-white rounded-lg font-medium hover:bg-purple-700 transition-colors shadow-button min-h-[44px] flex items-center justify-center space-x-2">
+                        <i class="fa fa-magic"></i>
+                        <span>智能整理</span>
+                    </button>
+                </div>
+                <div id="aiProcessingSpinner" class="hidden mt-3 text-center py-4">
+                    <i class="fa fa-spinner animate-spin text-2xl text-purple-500"></i>
+                    <p class="text-sm text-textSecondary mt-2">AI 正在分析作业内容...</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- 学科任务管理 -->
+        <section class="mb-4">
+            <div class="flex items-center justify-between mb-3">
+                <h2 class="text-base font-medium">今日任务</h2>
+                <div class="flex space-x-2">
+                    <button id="filterAllBtn" class="px-2 py-0.5 bg-primary text-white rounded-full text-xs font-medium">全部</button>
+                    <button id="filterCompletedBtn" class="px-2 py-0.5 bg-white text-textSecondary rounded-full text-xs font-medium hover:bg-gray-100 transition-colors">已完成</button>
+                    <button id="filterPendingBtn" class="px-2 py-0.5 bg-white text-textSecondary rounded-full text-xs font-medium hover:bg-gray-100 transition-colors">待完成</button>
+                </div>
+            </div>
+
+            <!-- 学科分类标签 -->
+            <div class="flex overflow-x-auto scrollbar-hide space-x-1.5 mb-3 pb-1.5">
+                <button class="px-3 py-1.5 bg-primary text-white rounded-full text-xs font-medium whitespace-nowrap">全部学科</button>
+                <button class="px-3 py-1.5 bg-white text-textPrimary rounded-full text-xs font-medium whitespace-nowrap hover:bg-gray-100 transition-colors">语文</button>
+                <button class="px-3 py-1.5 bg-white text-textPrimary rounded-full text-xs font-medium whitespace-nowrap hover:bg-gray-100 transition-colors">数学</button>
+                <button class="px-3 py-1.5 bg-white text-textPrimary rounded-full text-xs font-medium whitespace-nowrap hover:bg-gray-100 transition-colors">英语</button>
+                <button class="px-3 py-1.5 bg-white text-textPrimary rounded-full text-xs font-medium whitespace-nowrap hover:bg-gray-100 transition-colors">科学</button>
+                <button class="px-3 py-1.5 bg-white text-textPrimary rounded-full text-xs font-medium whitespace-nowrap hover:bg-gray-100 transition-colors">美术</button>
+                <button class="px-3 py-1.5 bg-white text-textPrimary rounded-full text-xs font-medium whitespace-nowrap hover:bg-gray-100 transition-colors">音乐</button>
+            </div>
+
+            <!-- 任务列表 -->
+            <div id="taskList" class="space-y-3">
+                <!-- 任务卡片将通过JavaScript动态生成 -->
+            </div>
+        </section>
+
+        <!-- 统计图表汇总 -->
+        <section class="bg-white rounded-xl shadow-card p-3 mb-4">
+            <div class="flex items-center justify-between mb-4">
+                <h2 class="text-base font-medium">本周学习统计</h2>
+                <select id="chartTypeSelector" class="bg-white border border-gray-200 rounded-lg px-2 py-1 text-xs text-textPrimary focus:outline-none focus:ring-2 focus:ring-primary/30">
+                    <option value="time">学习时长</option>
+                    <option value="completion">完成率</option>
+                    <option value="subjects">学科分布</option>
+                </select>
+            </div>
+            <div class="w-full h-56">
+                <canvas id="statsChart"></canvas>
+            </div>
+        </section>
+
+
+    </div>
+
+    <!-- 主内容区域 - 学科页面 -->
+    <div id="subjects-page" class="container mx-auto px-4 py-3 pb-20 hidden">
+        <header class="mb-4">
+            <h1 class="text-xl font-bold text-textPrimary">学科学习管理</h1>
+            <p class="text-textSecondary text-xs mt-1">管理各学科的学习任务和查看学习统计</p>
+        </header>
+
+        <!-- 学科列表 -->
+        <section class="mb-4">
+            <div class="flex items-center justify-between mb-2">
+                <h2 class="text-base font-semibold">我的学科</h2>
+                <button id="addSubjectBtn" class="p-1.5 bg-primary text-white rounded-lg hover:bg-dark transition-colors shadow-button" title="添加学科">
+                    <i class="fa fa-plus-circle" style="font-size: 1rem;"></i>
+                </button>
+            </div>
+            <div id="subjectList" class="grid grid-cols-2 gap-3">
+                <!-- 学科卡片将通过JavaScript动态生成 -->
+            </div>
+        </section>
+
+        <!-- 各学科完成情况统计 -->
+        <section class="mb-6">
+            <div class="flex items-center justify-between mb-3">
+                <h2 class="text-base font-semibold">学科完成情况</h2>
+            </div>
+            <div class="bg-white rounded-xl shadow-card p-3">
+                <canvas id="subjectStatsChart" height="200"></canvas>
+            </div>
+        </section>
+    </div>
+
+    <!-- 主内容区域 - 我的页面 -->
+    <div id="profile-page" class="container mx-auto px-4 py-3 pb-20 hidden">
+        <header class="mb-4">
+            <h1 class="text-xl font-bold text-textPrimary">个人中心</h1>
+        </header>
+        
+        <!-- 用户管理 -->
+        <section class="mb-4">
+            <div class="flex items-center justify-between mb-3">
+                <h2 class="text-base font-semibold">用户管理</h2>
+                <button id="addUserBtn" class="px-3 py-1 bg-primary text-white rounded-lg font-medium hover:bg-dark transition-colors text-xs shadow-button">
+                    <i class="fa fa-plus mr-1"></i> 添加用户
+                </button>
+            </div>
+            
+            <div class="bg-white rounded-xl shadow-card p-3 mb-3">
+                <div id="usersList" class="space-y-2">
+                    <!-- 用户列表将通过JavaScript动态生成 -->
+                </div>
+            </div>
+        </section>
+        
+        <!-- 个人信息 -->
+        <section class="bg-white rounded-xl shadow-card p-4 mb-4">
+            <div id="currentUserInfo">
+                <!-- 当前用户信息将通过JavaScript动态生成 -->
+            </div>
+        </section>
+        
+        <!-- 编辑个人信息表单 (初始隐藏) -->
+        <section id="editUserFormSection" class="bg-white rounded-xl shadow-card p-4 mb-4 hidden">
+            <h2 class="text-base font-semibold mb-3">编辑个人信息</h2>
+            <form id="editUserForm">
+                <div class="space-y-3">
+                    <div>
+                        <label class="block text-xs font-medium text-textSecondary mb-1">用户名</label>
+                        <input type="text" id="editUserName" class="w-full px-3 py-1.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/30" placeholder="请输入用户名">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-textSecondary mb-1">用户头像</label>
+                        <div class="grid grid-cols-6 gap-1.5 mt-1.5" id="avatarOptions">
+                            <!-- 头像选项将通过JavaScript动态生成 -->
+                        </div>
+                        <input type="hidden" id="editUserAvatar" value="👨‍🎓">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-textSecondary mb-1">用户年级</label>
+                        <input type="text" id="editUserGrade" class="w-full px-3 py-1.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/30" placeholder="请输入年级">
+                    </div>
+                    <div id="oldPasswordContainer">
+                        <label class="block text-xs font-medium text-textSecondary mb-1">当前密码</label>
+                        <input type="password" id="editUserOldPassword" class="w-full px-3 py-1.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/30" placeholder="修改密码时需要输入当前密码">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-textSecondary mb-1">新密码</label>
+                        <input type="password" id="editUserPassword" class="w-full px-3 py-1.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/30" placeholder="留空表示不修改密码">
+                    </div>
+                </div>
+                <div class="mt-4 flex space-x-2">
+                    <button type="button" id="cancelEditUserBtn" class="flex-1 px-3 py-2 bg-gray-100 text-textPrimary rounded-lg font-medium hover:bg-gray-200 transition-colors text-sm">
+                        取消
+                    </button>
+                    <button type="submit" class="flex-1 px-3 py-2 bg-primary text-white rounded-lg font-medium hover:bg-dark transition-colors shadow-button text-sm">
+                        保存
+                    </button>
+                </div>
+            </form>
+        </section>
+        
+        <!-- 应用设置 -->
+        <section class="bg-white rounded-xl shadow-card p-4 mb-4">
+            <h2 class="text-base font-semibold mb-3">应用设置</h2>
+            <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                <button id="pomodoroSettingsBtn" class="px-3 py-2 bg-primary/10 text-primary rounded-lg font-medium hover:bg-primary/20 transition-colors text-sm">
+                    <i class="fa fa-clock-o mr-1"></i> 番茄钟设置
+                </button>
+                <button id="taskSettingsBtn" class="px-3 py-2 bg-primary/10 text-primary rounded-lg font-medium hover:bg-primary/20 transition-colors text-sm">
+                    <i class="fa fa-tasks mr-1"></i> 任务设置
+                </button>
+                <button id="aiSettingsEntryBtn" class="px-3 py-2 bg-purple-100 text-purple-600 rounded-lg font-medium hover:bg-purple-200 transition-colors text-sm min-h-[44px]">
+                    🤖 AI 设置
+                </button>
+            </div>
+        </section>
+        
+        <!-- 数据管理 -->
+        <section class="bg-white rounded-xl shadow-card p-4 mb-4">
+            <h2 class="text-base font-semibold mb-3">数据管理</h2>
+            <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                <button id="exportDataBtn" class="px-3 py-2 bg-primary/10 text-primary rounded-lg font-medium hover:bg-primary/20 transition-colors text-sm">
+                    <i class="fa fa-download mr-1"></i> 导出数据
+                </button>
+                <button id="importDataBtn" class="px-3 py-2 bg-primary/10 text-primary rounded-lg font-medium hover:bg-primary/20 transition-colors text-sm">
+                    <i class="fa fa-upload mr-1"></i> 导入数据
+                </button>
+                <button id="activityLogBtn" class="px-3 py-2 bg-primary/10 text-primary rounded-lg font-medium hover:bg-primary/20 transition-colors text-sm">
+                    <i class="fa fa-history mr-1"></i> 操作记录
+                </button>
+                <button id="clearUserDataBtn" class="px-3 py-2 bg-red-100 text-red-600 rounded-lg font-medium hover:bg-red-200 transition-colors text-sm">
+                    <i class="fa fa-trash mr-1"></i> 清除数据
+                </button>
+            </div>
+            <input type="file" id="dataFileInput" accept=".json" class="hidden">
+        </section>
+        
+        <!-- 荣誉墙 -->
+        <section class="mb-6">
+            <div class="flex items-center justify-between mb-3">
+                <h2 class="text-base font-semibold">我的荣誉</h2>
+                <div class="flex space-x-2">
+                    <button id="prevHonorMonthBtn" class="text-primary text-sm">
+                        <i class="fa fa-chevron-left"></i>
+                    </button>
+                    <button id="nextHonorMonthBtn" class="text-primary text-sm">
+                        <i class="fa fa-chevron-right"></i>
+                    </button>
+                </div>
+            </div>
+            <div id="currentHonorMonth" class="text-base font-medium text-center mb-4">2024年6月</div>
+            
+            <!-- 按月荣誉容器 -->
+            <div id="honorsByMonth" class="space-y-4">
+                <!-- 已获得荣誉 -->
+                <div class="bg-white rounded-xl shadow-card p-3">
+                    <h3 class="text-sm font-medium mb-3">已获得荣誉</h3>
+                    <div id="earnedHonors" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                        <!-- 荣誉将通过JavaScript动态生成 -->
+                    </div>
+                </div>
+                
+                <!-- 未获得荣誉 -->
+                <div class="bg-white rounded-xl shadow-card p-3">
+                    <h3 class="text-sm font-medium mb-3">待解锁荣誉</h3>
+                    <div id="unearnedHonors" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                        <!-- 未获得的荣誉将通过JavaScript动态生成 -->
+                    </div>
+                </div>
+            </div>
+        </section>
+        <!-- 应用版本信息（居中显示） -->
+        <footer class="w-full text-center text-textSecondary text-xs mt-6 mb-6">
+            <div id="appVersionText">版本: -- 构建时间: --</div>
+        </footer>
+    </div>
+
+    <!-- 操作记录模态框 -->
+    <div id="activityLogModal" class="fixed inset-0 bg-black/50 z-50 hidden flex items-center justify-center">
+        <div class="bg-white rounded-xl shadow-lg w-full max-w-2xl max-h-[80vh] flex flex-col">
+            <div class="flex items-center justify-between p-4 border-b">
+                <h3 class="text-lg font-bold text-textPrimary">操作记录</h3>
+                <button id="closeActivityLogBtn" class="text-gray-500 hover:text-gray-700 transition-colors">
+                    <i class="fa fa-times text-lg"></i>
+                </button>
+            </div>
+            <div class="flex-1 overflow-y-auto p-4">
+                <div id="activityLogContent" class="space-y-3">
+                    <!-- 操作记录将通过JavaScript动态生成 -->
+                </div>
+            </div>
+            <div class="p-4 border-t flex justify-between">
+                <div class="text-sm text-gray-500">
+                    显示近一个月记录
+                </div>
+                <button id="clearActivityLogBtn" class="px-3 py-1 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors text-sm">
+                    清空记录
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 底部导航栏 -->
+    <nav class="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-lg">
+        <div class="grid grid-cols-4 h-16">
+            <a href="#calendar" class="flex flex-col items-center justify-center text-gray-500 hover:bg-gray-50 transition-colors page-link active" data-page="calendar">
+                <i class="fa fa-calendar-check-o text-lg"></i>
+                <span class="text-xs mt-1">作业打卡</span>
+            </a>            
+            <a href="#wishes" class="flex flex-col items-center justify-center text-gray-500 hover:bg-gray-50 transition-colors page-link" data-page="wishes">
+                <i class="fa fa-star-o text-lg"></i>
+                <span class="text-xs mt-1">小心愿</span>
+            </a>
+            <a href="#subjects" class="flex flex-col items-center justify-center text-gray-500 hover:bg-gray-50 transition-colors page-link" data-page="subjects">
+                <i class="fa fa-book text-lg"></i>
+                <span class="text-xs mt-1">学科</span>
+            </a>
+            <a href="#profile" class="flex flex-col items-center justify-center text-gray-500 hover:bg-gray-50 transition-colors page-link" data-page="profile">
+                <i class="fa fa-user-circle-o text-lg"></i>
+                <span class="text-xs mt-1">我的</span>
+            </a>
+        </div>
+        <style>
+            .page-link.active i,
+            .page-link.active span {
+                color: #4CAF50;
+                font-weight: 500;
+            }
+            .page-link:not(.active) i,
+            .page-link:not(.active) span {
+                color: #9CA3AF;
+            }
+        </style>
+    </nav>
+
+    <!-- 浮动添加按钮 -->
+    <button id="addTaskBtn" class="fixed bottom-20 right-5 w-12 h-12 bg-primary rounded-full shadow-button flex items-center justify-center text-white text-xl hover:bg-dark transition-all transform hover:scale-105">
+        <i class="fa fa-plus"></i>
+    </button>
+
+    <!-- 小心愿页面 -->
+    <div id="wishes-page" class="container mx-auto px-4 py-3 pb-20 hidden">
+        <!-- 顶部金币显示 -->
+        <div class="bg-blue-50 rounded-xl p-3 mb-4 flex items-center justify-between">
+            <div class="flex items-center space-x-2">
+                <i class="fa fa-coins text-amber-500 text-xl"></i>
+                <span class="font-medium">可用金币</span>
+                <span id="wishes-coins-display" class="text-xl font-bold text-amber-500">0</span>
+            </div>
+            <button id="showWishRedemptionRecordsBtn" class="px-3 py-1.5 bg-primary/10 text-primary rounded-lg text-sm hover:bg-primary/20 transition-colors">
+                <i class="fa fa-history mr-1"></i> 领取记录
+            </button>
+        </div>
+
+        <!-- 小心愿列表 -->
+        <div class="mb-4">
+            <h2 class="text-base font-semibold mb-3 flex items-center">
+                <i class="fa fa-star text-amber-400 mr-2"></i> 我的小心愿
+                <button id="addWishBtn" class="ml-auto px-3 py-1 bg-primary/10 text-primary rounded-lg text-sm hover:bg-primary/20 transition-colors">
+                    <i class="fa fa-plus mr-1"></i> 添加心愿
+                </button>
+            </h2>
+            <div id="wishes-list" class="grid grid-cols-2 gap-3">
+                <!-- 小心愿卡片将通过JavaScript动态生成 -->
+            </div>
+        </div>
+    </div>
+
+    <!-- 添加/编辑小心愿弹窗 -->
+    <div id="wishModal" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center hidden">
+        <div class="bg-white rounded-2xl w-full max-w-md mx-4 shadow-lg flex flex-col">
+            <div class="flex items-center justify-between p-4 border-b border-gray-100">
+                <h3 id="wishModalTitle" class="text-xl font-bold">添加小心愿</h3>
+                <button id="closeWishModalBtn" class="text-textSecondary hover:text-textPrimary transition-colors">
+                    <i class="fa fa-times text-lg"></i>
+                </button>
+            </div>
+            <form id="wishForm" class="p-4 max-h-[70vh] overflow-y-auto">
+                <div class="space-y-4">
+                    <!-- 图标上传 -->
+                    <div>
+                        <label class="block text-sm font-medium text-textSecondary mb-1">心愿图标</label>
+                        <div class="flex items-center space-x-3">
+                            <div id="wishIconPreview" class="w-16 h-16 bg-blue-100 rounded-xl flex items-center justify-center text-3xl">
+                                <i class="fa fa-gift text-blue-500"></i>
+                            </div>
+                            <input type="file" id="wishIconUpload" accept="image/*" class="hidden">
+                            <label for="wishIconUpload" class="px-4 py-2 bg-primary/10 text-primary rounded-lg text-sm cursor-pointer hover:bg-primary/20 transition-colors">
+                                <i class="fa fa-upload mr-1"></i> 选择图片
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <!-- 愿望名称 -->
+                    <div>
+                        <label class="block text-sm font-medium text-textSecondary mb-1">愿望名称</label>
+                        <input type="text" id="wishName" class="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/30" placeholder="请输入愿望名称">
+                    </div>
+                    
+                    <!-- 愿望内容 -->
+                    <div>
+                        <label class="block text-sm font-medium text-textSecondary mb-1">愿望内容</label>
+                        <textarea id="wishContent" class="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/30" rows="3" placeholder="请输入愿望内容"></textarea>
+                    </div>
+                    
+                    <!-- 所需金币 -->
+                    <div>
+                        <label class="block text-sm font-medium text-textSecondary mb-1">所需金币</label>
+                        <div class="relative">
+                            <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-textSecondary">
+                                <i class="fa fa-coins text-amber-500"></i>
+                            </span>
+                            <input type="number" id="wishCost" class="w-full pl-10 pr-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/30" placeholder="请输入所需金币数" min="1" max="1000">
+                        </div>
+                    </div>
+                </div>
+                <div class="mt-6 flex space-x-3">
+                    <button type="button" id="cancelWishBtn" class="flex-1 px-4 py-2.5 bg-gray-100 text-textPrimary rounded-lg font-medium hover:bg-gray-200 transition-colors">
+                        取消
+                    </button>
+                    <button type="submit" class="flex-1 px-4 py-2.5 bg-primary text-white rounded-lg font-medium hover:bg-dark transition-colors shadow-button">
+                        保存
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 添加学科弹窗 -->
+    <div id="subjectModal" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center hidden">
+        <div class="bg-white rounded-2xl w-full max-w-md mx-4 shadow-lg flex flex-col">
+            <div class="flex items-center justify-between p-4 border-b border-gray-100">
+                <h3 class="text-xl font-bold">添加新学科</h3>
+                <button id="closeSubjectModalBtn" class="text-textSecondary hover:text-textPrimary transition-colors">
+                    <i class="fa fa-times text-lg"></i>
+                </button>
+            </div>
+            <form id="subjectForm" class="p-4 max-h-[70vh] overflow-y-auto">
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-textSecondary mb-1">学科名称</label>
+                        <input type="text" id="subjectName" class="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/30" placeholder="请输入学科名称" required>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-textSecondary mb-1">主题颜色</label>
+                        <div class="grid grid-cols-5 gap-2 mt-2">
+                            <button type="button" class="h-10 rounded-lg bg-red-500 color-option" data-color="#FF6B6B"></button>
+                            <button type="button" class="h-10 rounded-lg bg-blue-500 color-option" data-color="#4ECDC4"></button>
+                            <button type="button" class="h-10 rounded-lg bg-green-500 color-option" data-color="#45B7D1"></button>
+                            <button type="button" class="h-10 rounded-lg bg-purple-500 color-option" data-color="#96CEB4"></button>
+                            <button type="button" class="h-10 rounded-lg bg-yellow-500 color-option" data-color="#FFD166"></button>
+                            <button type="button" class="h-10 rounded-lg bg-orange-500 color-option" data-color="#F9C80E"></button>
+                            <button type="button" class="h-10 rounded-lg bg-pink-500 color-option" data-color="#FF86B3"></button>
+                            <button type="button" class="h-10 rounded-lg bg-indigo-500 color-option" data-color="#7856FF"></button>
+                            <button type="button" class="h-10 rounded-lg bg-teal-500 color-option" data-color="#14B8A6"></button>
+                            <button type="button" class="h-10 rounded-lg bg-rose-500 color-option" data-color="#E11D48"></button>
+                        </div>
+                        <input type="hidden" id="subjectColor" value="#FF6B6B">
+                    </div>
+                </div>
+                <div class="mt-6 flex space-x-3">
+                    <button type="button" id="cancelSubjectBtn" class="flex-1 px-4 py-2.5 bg-gray-100 text-textPrimary rounded-lg font-medium hover:bg-gray-200 transition-colors">
+                        取消
+                    </button>
+                    <button type="submit" class="flex-1 px-4 py-2.5 bg-primary text-white rounded-lg font-medium hover:bg-dark transition-colors shadow-button">
+                        添加
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 添加用户弹窗 -->
+    <div id="addUserModal" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center hidden">
+        <div class="bg-white rounded-2xl w-full max-w-md mx-4 shadow-lg flex flex-col">
+            <div class="flex items-center justify-between p-4 border-b border-gray-100">
+                <h3 class="text-xl font-bold">添加新用户</h3>
+                <button id="closeAddUserModalBtn" class="text-textSecondary hover:text-textPrimary transition-colors">
+                    <i class="fa fa-times text-lg"></i>
+                </button>
+            </div>
+            <form id="addUserForm" class="p-4 max-h-[70vh] overflow-y-auto">
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-textSecondary mb-1">用户名</label>
+                        <input type="text" id="newUserName" class="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/30" placeholder="请输入用户名" required>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-textSecondary mb-1">用户头像</label>
+                        <div class="grid grid-cols-6 gap-2 mt-2 max-h-64 overflow-y-auto p-1 scrollbar-hide" id="newUserAvatarOptions">
+                            <!-- 头像选项将通过JavaScript动态生成 -->
+                        </div>
+                        <input type="hidden" id="newUserAvatar" value="👨‍🎓">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-textSecondary mb-1">用户年级</label>
+                        <input type="text" id="newUserGrade" class="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/30" placeholder="请输入年级">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-textSecondary mb-1">用户密码</label>
+                        <input type="password" id="newUserPassword" class="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/30" placeholder="设置密码，用于保护敏感操作">
+                    </div>
+                </div>
+                </div>
+                <div class="mt-8 flex flex-col space-y-3">
+                    <button type="button" id="cancelAddUserBtn" class="w-full px-4 py-2.5 bg-gray-100 text-textPrimary rounded-lg font-medium hover:bg-gray-200 transition-colors">
+                        取消
+                    </button>
+                    <button type="submit" class="w-full px-4 py-2.5 bg-primary text-white rounded-lg font-medium hover:bg-dark transition-colors shadow-button">
+                        添加
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 确认对话框 -->
+    <div id="confirmDialog" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center hidden">
+        <div class="bg-white rounded-2xl w-full max-w-md mx-4 shadow-lg flex flex-col">
+            <div class="flex items-center justify-between p-4 border-b border-gray-100">
+                <h3 class="text-xl font-bold" id="confirmDialogTitle">确认操作</h3>
+                <button type="button" id="confirmDialogCloseBtn" class="text-textSecondary hover:text-textPrimary transition-colors">
+                    <i class="fa fa-times text-lg"></i>
+                </button>
+            </div>
+            <p class="text-textPrimary p-4" id="confirmDialogMessage">您确定要执行此操作吗？</p>
+            <div class="mt-6 flex space-x-3">
+                <button type="button" id="confirmDialogCancel" class="flex-1 px-4 py-2.5 bg-gray-100 text-textPrimary rounded-lg font-medium hover:bg-gray-200 transition-colors">
+                    取消
+                </button>
+                <button type="button" id="confirmDialogConfirm" class="flex-1 px-4 py-2.5 bg-primary text-white rounded-lg font-medium hover:bg-dark transition-colors shadow-button">
+                    确定
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 任务添加/编辑弹窗 -->
+    <div id="taskModal" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center hidden">
+        <div class="bg-white rounded-2xl w-full max-w-md shadow-lg flex flex-col transition-transform duration-300 transform-gpu" id="taskModalContent">
+            <div class="flex items-center justify-between p-4 border-b border-gray-100">
+                <h3 id="modalTitle" class="text-xl font-bold">添加新任务</h3>
+                <button id="closeModalBtn" class="text-textSecondary hover:text-textPrimary transition-colors">
+                    <i class="fa fa-times text-lg"></i>
+                </button>
+            </div>
+            <form id="taskForm" class="p-4 max-h-[70vh] overflow-y-auto">
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-textSecondary mb-1">任务名称</label>
+                        <input type="text" id="taskName" class="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/30" placeholder="请输入任务名称">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-textSecondary mb-1">选择学科</label>
+                        <select id="taskSubject" class="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/30">
+                            <option value="语文">语文</option>
+                            <option value="数学">数学</option>
+                            <option value="英语">英语</option>
+                            <option value="科学">科学</option>
+                            <option value="美术">美术</option>
+                            <option value="音乐">音乐</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-textSecondary mb-1">计划时长 (分钟)</label>
+                        <input type="number" id="taskDuration" class="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/30" placeholder="请输入计划时长" min="1" max="300">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-textSecondary mb-1">奖励金币</label>
+                        <div class="relative">
+                            <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-textSecondary">
+                                <i class="fa fa-coins text-amber-500"></i>
+                            </span>
+                            <input type="number" id="taskCoins" class="w-full pl-10 pr-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/30" placeholder="请输入奖励金币数" max="100">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-textSecondary mb-1">任务描述</label>
+                        <textarea id="taskDescription" class="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/30" rows="3" placeholder="请输入任务描述"></textarea>
+                    </div>
+                    <!-- 系列信息与编辑范围（编辑时显示） -->
+                    <div id="seriesInfo" class="mt-3 bg-gray-50 p-3 rounded-lg hidden">
+                        <div class="text-xs text-textSecondary mb-2">系列信息</div>
+                        <div class="text-sm mb-2">系列：<span id="seriesIdDisplay" class="font-medium text-textPrimary">-</span></div>
+                        <div class="text-sm text-textSecondary mb-2">摘要：<span id="seriesSummary" class="text-sm text-textPrimary">-</span></div>
+                        <div class="text-sm text-textSecondary">编辑影响范围：</div>
+                        <div class="mt-2 flex items-center space-x-4">
+                            <label class="flex items-center space-x-2 text-sm">
+                                <input type="radio" name="editScope" value="future" checked class="text-primary focus:ring-primary">
+                                <span>仅影响未来实例</span>
+                            </label>
+                            <label class="flex items-center space-x-2 text-sm">
+                                <input type="radio" name="editScope" value="all" class="text-primary focus:ring-primary">
+                                <span>影响历史与未来实例</span>
+                            </label>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-textSecondary mb-1">打卡频次</label>
+                        <div class="space-y-2">
+                            <div class="flex items-center space-x-2">
+                                <input type="radio" name="taskFrequency" value="once" checked class="text-primary focus:ring-primary">
+                                <span>一次性任务</span>
+                            </div>
+                            <div class="flex items-center space-x-2">
+                                <input type="radio" name="taskFrequency" value="daily" class="text-primary focus:ring-primary">
+                                <span>每天</span>
+                            </div>
+                            <div class="flex items-center space-x-2">
+                                <input type="radio" name="taskFrequency" value="every_n_days" class="text-primary focus:ring-primary">
+                                <span>每</span>
+                                <input type="number" id="n_days_input" class="w-16 px-2 py-1 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/30 text-center" min="1" max="30" value="1">
+                                <span>天</span>
+                            </div>
+                            <div class="flex items-center space-x-2">
+                                <input type="radio" name="taskFrequency" value="weekly" class="text-primary focus:ring-primary">
+                                <span>每周</span>
+                                <div id="weekdays_checkboxes" class="ml-4 grid grid-cols-4 gap-x-4 gap-y-1 text-sm">
+                                    <label class="flex items-center space-x-1"><input type="checkbox" class="weekday-checkbox" value="0" checked><span>日</span></label>
+                                    <label class="flex items-center space-x-1"><input type="checkbox" class="weekday-checkbox" value="1" checked><span>一</span></label>
+                                    <label class="flex items-center space-x-1"><input type="checkbox" class="weekday-checkbox" value="2" checked><span>二</span></label>
+                                    <label class="flex items-center space-x-1"><input type="checkbox" class="weekday-checkbox" value="3" checked><span>三</span></label>
+                                    <label class="flex items-center space-x-1"><input type="checkbox" class="weekday-checkbox" value="4" checked><span>四</span></label>
+                                    <label class="flex items-center space-x-1"><input type="checkbox" class="weekday-checkbox" value="5" checked><span>五</span></label>
+                                    <label class="flex items-center space-x-1"><input type="checkbox" class="weekday-checkbox" value="6" checked><span>六</span></label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mt-3">
+                        <label class="block text-sm font-medium text-textSecondary mb-1">开始/结束日期</label>
+                        <div class="flex items-center space-x-3">
+                            <label class="flex items-center space-x-2">
+                                <input type="checkbox" id="enableStartDate" class="text-primary focus:ring-primary">
+                                <span class="text-sm">启用开始日期</span>
+                            </label>
+                            <input type="date" id="startDateInput" class="px-3 py-1 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/30" />
+                        </div>
+                        <div id="endDateContainer" class="mt-2">
+                            <div class="flex items-center space-x-3">
+                                <label class="flex items-center space-x-2">
+                                    <input type="checkbox" id="enableEndDate" class="text-primary focus:ring-primary">
+                                    <span class="text-sm">启用结束日期</span>
+                                </label>
+                                <input type="date" id="endDateInput" class="px-3 py-1 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/30" />
+                            </div>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-textSecondary mb-1">完成状态</label>
+                        <div class="flex items-center space-x-4">
+                            <label class="flex items-center space-x-2">
+                                <input type="radio" name="taskStatus" value="pending" checked class="text-primary focus:ring-primary">
+                                <span>待完成</span>
+                            </label>
+                            <label class="flex items-center space-x-2">
+                                <input type="radio" name="taskStatus" value="completed" class="text-primary focus:ring-primary">
+                                <span>已完成</span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+                <div class="mt-6 flex space-x-3">
+                    <button type="button" id="cancelTaskBtn" class="flex-1 px-4 py-2.5 bg-gray-100 text-textPrimary rounded-lg font-medium hover:bg-gray-200 transition-colors">
+                        取消
+                    </button>
+                    <button type="submit" class="flex-1 px-4 py-2.5 bg-primary text-white rounded-lg font-medium hover:bg-dark transition-colors shadow-button">
+                        保存
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- AI 作业预览弹窗 -->
+    <div id="aiPreviewModal" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center hidden">
+        <div class="bg-white rounded-2xl w-full max-w-md mx-4 shadow-lg flex flex-col max-h-[85vh]">
+            <div class="flex items-center justify-between p-4 border-b border-gray-100">
+                <h3 class="text-xl font-bold">AI 识别结果预览</h3>
+                <button id="closeAiPreviewBtn" class="text-textSecondary hover:text-textPrimary transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center">
+                    <i class="fa fa-times text-lg"></i>
+                </button>
+            </div>
+            <div class="p-4 max-h-[55vh] overflow-y-auto">
+                <!-- Time estimate header -->
+                <div id="aiPreviewEstimate" class="bg-purple-50 rounded-lg p-3 mb-3 flex items-center justify-between">
+                    <span class="text-sm text-purple-700 font-medium">预计总时长</span>
+                    <span id="aiPreviewTotalTime" class="text-lg font-bold text-purple-700">约 0 分钟</span>
+                </div>
+                <!-- Date display -->
+                <div id="aiPreviewDate" class="text-sm text-textSecondary mb-3"></div>
+                <!-- Subject groups -->
+                <div id="aiPreviewSubjects" class="space-y-3"></div>
+            </div>
+            <div class="p-4 border-t flex space-x-3">
+                <button id="aiPreviewCancelBtn" class="flex-1 px-4 py-2.5 bg-gray-100 text-textPrimary rounded-lg font-medium hover:bg-gray-200 transition-colors min-h-[44px]">
+                    取消
+                </button>
+                <button id="aiPreviewConfirmBtn" class="flex-1 px-4 py-2.5 bg-primary text-white rounded-lg font-medium hover:bg-dark transition-colors shadow-button min-h-[44px]">
+                    确认添加 ✓
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 番茄钟弹窗 -->
+    <div id="pomodoroModal" class="fixed inset-0 bg-blue-100/80 z-50 flex items-center justify-center hidden">
+        <div id="pomodoroModalContent" class="bg-white rounded-2xl w-full max-w-md mx-4 shadow-lg transition-all duration-300 flex flex-col">
+            <div class="flex items-center justify-between p-4 border-b border-gray-100">
+                <h3 id="pomodoroModalTitle" class="text-xl font-bold">🍅番茄钟</h3>
+                <button id="closePomodoroBtn" class="text-textSecondary hover:text-textPrimary transition-colors">
+                    <i class="fa fa-times text-lg"></i>
+                </button>
+            </div>
+            <div class="text-center py-4 max-h-[60vh] overflow-y-auto">
+                <h4 id="pomodoroTaskName" class="text-lg font-medium mb-2"></h4>
+                <div class="flex items-center justify-center my-6">
+                    <div id="pomodoroTimer" class="text-5xl font-bold">00:00</div>
+                    <button id="chronometerToggleBtn" class="ml-3 text-gray-400 hover:text-primary transition-colors" title="切换模式">
+                    <i class="fa fa-clock-o text-2xl"></i>
+                </button>
+                </div>
+                <div id="pomodoroDuration" class="text-sm text-textSecondary mb-6">计划时长：0分钟</div>
+            </div>
+            <div class="flex space-x-3">
+                <button id="startPomodoroBtn" class="flex-1 px-4 py-2.5 bg-primary text-white rounded-lg font-medium hover:bg-dark transition-colors shadow-button">
+                    开始
+                </button>
+                <button id="resetPomodoroBtn" class="flex-1 px-4 py-2.5 bg-gray-100 text-textPrimary rounded-lg font-medium hover:bg-gray-200 transition-colors">
+                    重置
+                </button>
+                <button id="completePomodoroBtn" class="flex-1 px-4 py-2.5 bg-green-500 text-white rounded-lg font-medium hover:bg-green-600 transition-colors shadow-button">
+                    已完成
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 番茄钟小球 (初始隐藏) -->
+    <div id="pomodoroMini" class="fixed bottom-20 left-1/2 transform -translate-x-1/2 bg-red-100/80 backdrop-blur-sm rounded-full w-16 h-16 flex items-center justify-center shadow-lg cursor-move z-40 hidden transition-all duration-300">
+        <span id="pomodoroMiniTimer" class="text-sm font-bold">00:00</span>
+    </div>
+
+    <!-- 番茄钟设置模态框 -->
+    <div id="pomodoroSettingsModal" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center hidden">
+        <div class="bg-white rounded-2xl w-full max-w-md mx-4 shadow-lg flex flex-col">
+            <div class="flex items-center justify-between p-4 border-b border-gray-100">
+                <h3 class="text-xl font-bold">番茄钟设置</h3>
+                <button id="closePomodoroSettingsBtn" class="text-textSecondary hover:text-textPrimary transition-colors">
+                    <i class="fa fa-times text-lg"></i>
+                </button>
+            </div>
+            <div class="p-4">
+                <div class="mb-4">
+                    <label class="flex items-center justify-between p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors">
+                        <div class="flex items-center space-x-3">
+                            <i class="fa fa-lock text-primary text-lg"></i>
+                            <span class="text-textPrimary">固定番茄钟页面</span>
+                        </div>
+                        <input type="checkbox" id="fixedPomodoroCheckbox" class="w-5 h-5 text-primary focus:ring-primary rounded">
+                    </label>
+                    <p class="text-sm text-textSecondary mt-2 ml-8">启用后，番茄钟将保持全屏显示，点击其他区域不会缩小为悬浮球</p>
+                </div>
+            </div>
+            <div class="p-4 border-t">
+                <button id="savePomodoroSettingsBtn" class="w-full px-4 py-2.5 bg-primary text-white rounded-lg font-medium hover:bg-dark transition-colors shadow-button">
+                    保存设置
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 密码验证对话框 -->
+    <div id="passwordDialog" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center hidden">
+        <div class="bg-white rounded-2xl w-full max-w-md mx-4 shadow-lg flex flex-col">
+            <div class="flex items-center justify-between p-4 border-b border-gray-100">
+                <h3 class="text-xl font-bold">请输入密码</h3>
+                <button type="button" id="passwordDialogCloseBtn" class="text-textSecondary hover:text-textPrimary transition-colors">
+                    <i class="fa fa-times text-lg"></i>
+                </button>
+            </div>
+            <div class="p-4">
+                <p class="text-textSecondary mb-3" id="passwordDialogMessage">此操作需要验证用户密码</p>
+                <input type="password" id="passwordInput" class="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/30" placeholder="请输入密码">
+            </div>
+            <div class="flex space-x-3">
+                <button type="button" id="cancelPasswordBtn" class="flex-1 px-4 py-2.5 bg-gray-100 text-textPrimary rounded-lg font-medium hover:bg-gray-200 transition-colors">
+                    取消
+                </button>
+                <button type="button" id="confirmPasswordBtn" class="flex-1 px-4 py-2.5 bg-primary text-white rounded-lg font-medium hover:bg-dark transition-colors shadow-button">
+                    确认
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 任务设置模态框 -->
+    <div id="taskSettingsModal" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center hidden">
+        <div class="bg-white rounded-2xl w-full max-w-md mx-4 shadow-lg flex flex-col">
+            <div class="flex items-center justify-between p-4 border-b border-gray-100">
+                <h3 class="text-xl font-bold">任务设置</h3>
+                <button id="closeTaskSettingsBtn" class="text-textSecondary hover:text-textPrimary transition-colors">
+                    <i class="fa fa-times text-lg"></i>
+                </button>
+            </div>
+            <div class="p-4">
+                <div class="mb-4">
+                    <label class="flex items-center justify-between p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors">
+                        <div class="flex items-center space-x-3">
+                            <i class="fa fa-arrow-right text-primary text-lg"></i>
+                            <span class="text-textPrimary">未完成任务自动迁移</span>
+                        </div>
+                        <input type="checkbox" id="autoMigrateCheckbox" class="w-5 h-5 text-primary focus:ring-primary rounded">
+                    </label>
+                    <p class="text-sm text-textSecondary mt-2 ml-8">启用后，刷新页面时会自动将所有未完成的历史任务迁移到今天</p>
+                </div>
+            </div>
+            <div class="p-4 border-t">
+                <button id="saveTaskSettingsBtn" class="w-full px-4 py-2.5 bg-primary text-white rounded-lg font-medium hover:bg-dark transition-colors shadow-button">
+                    保存设置
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    
+    <!-- AI 设置弹窗 -->
+    <div id="aiSettingsModal" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center hidden">
+        <div class="bg-white rounded-2xl w-full max-w-md mx-4 shadow-lg flex flex-col">
+            <div class="flex items-center justify-between p-4 border-b border-gray-100">
+                <h3 class="text-xl font-bold">AI 设置</h3>
+                <button id="closeAiSettingsBtn" class="text-textSecondary hover:text-textPrimary transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center">
+                    <i class="fa fa-times text-lg"></i>
+                </button>
+            </div>
+            <div class="p-4">
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-textSecondary mb-1">API 服务商</label>
+                        <select id="aiProvider" class="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/30 min-h-[44px]">
+                            <option value="deepseek">DeepSeek（推荐，国内可用）</option>
+                            <option value="anthropic">Claude API (Anthropic)</option>
+                            <option value="openai">OpenAI 兼容 API</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-textSecondary mb-1">API Base URL</label>
+                        <input type="text" id="aiBaseUrl" class="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/30" placeholder="https://api.anthropic.com">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-textSecondary mb-1">API Key</label>
+                        <input type="password" id="aiApiKey" class="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/30" placeholder="sk-...">
+                        <p class="text-xs text-textSecondary mt-1">
+                            <a href="https://platform.deepseek.com/api_keys" target="_blank" class="text-primary underline">获取 DeepSeek API Key</a>
+                            &nbsp;|&nbsp;
+                            <a href="https://console.anthropic.com/" target="_blank" class="text-primary underline">Claude</a>
+                            &nbsp;|&nbsp;
+                            <a href="https://platform.openai.com/api-keys" target="_blank" class="text-primary underline">OpenAI</a>
+                        </p>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-textSecondary mb-1">模型名称</label>
+                        <input type="text" id="aiModel" class="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/30" placeholder="claude-3-haiku-20240307">
+                    </div>
+                </div>
+            </div>
+            <div class="p-4 border-t flex space-x-3">
+                <button id="aiSettingsCancelBtn" class="flex-1 px-4 py-2.5 bg-gray-100 text-textPrimary rounded-lg font-medium hover:bg-gray-200 transition-colors min-h-[44px]">
+                    取消
+                </button>
+                <button id="aiSettingsSaveBtn" class="flex-1 px-4 py-2.5 bg-primary text-white rounded-lg font-medium hover:bg-dark transition-colors shadow-button min-h-[44px]">
+                    保存设置
+                </button>
+            </div>
+        </div>
+    </div>
+
+<!-- 金币修改对话框 -->
+    <div id="modifyCoinsDialog" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center hidden">
+        <div class="bg-white rounded-2xl w-full max-w-md mx-4 shadow-lg flex flex-col">
+            <div class="flex items-center justify-between p-4 border-b border-gray-100">
+                <h3 class="text-xl font-bold">修改金币数量</h3>
+                <button type="button" id="modifyCoinsCloseBtn" class="text-textSecondary hover:text-textPrimary transition-colors">
+                    <i class="fa fa-times text-lg"></i>
+                </button>
+            </div>
+            <div class="p-4 max-h-[60vh] overflow-y-auto">
+                <div class="mb-3">
+                    <p class="text-textSecondary mb-1">当前金币数</p>
+                    <p id="currentCoinsValue" class="text-lg font-bold text-amber-500">0</p>
+                </div>
+                <div class="mb-3">
+                    <label class="block text-sm font-medium text-textSecondary mb-1">新的金币数量</label>
+                    <div class="relative">
+                        <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-textSecondary">
+                            <i class="fa fa-coins text-amber-500"></i>
+                        </span>
+                        <input type="number" id="newCoinsInput" class="w-full pl-10 pr-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/30" placeholder="请输入新的金币数量" min="0">
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <label class="block text-sm font-medium text-textSecondary mb-1">修改原因</label>
+                    <textarea id="coinsReasonInput" class="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/30" rows="3" placeholder="请输入修改金币数量的原因"></textarea>
+                </div>
+            </div>
+            <div class="flex space-x-3">
+                <button type="button" id="cancelCoinsBtn" class="flex-1 px-4 py-2.5 bg-gray-100 text-textPrimary rounded-lg font-medium hover:bg-gray-200 transition-colors">
+                    取消
+                </button>
+                <button type="button" id="saveCoinsBtn" class="flex-1 px-4 py-2.5 bg-primary text-white rounded-lg font-medium hover:bg-dark transition-colors shadow-button">
+                    保存
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- JavaScript 文件 -->
+    <script src="js/mockData.js"></script>
+    <script src="js/app.js"></script>
+    <script src="js/ai-input.js"></script>
+<!-- PWA Service Worker 注册 -->
+    <script>
+      // 检查浏览器是否支持Service Worker
+      if ('serviceWorker' in navigator) {
+        // 使用DOMContentLoaded事件确保DOM已完全加载
+        document.addEventListener('DOMContentLoaded', () => {
+          // 等待一小段时间再注册，确保文档完全准备好
+          setTimeout(() => {
+            try {
+              // 检查当前文档状态
+              if (document.readyState === 'complete' || document.readyState === 'interactive') {
+                // 使用相对路径
+                navigator.serviceWorker.register('./service-worker.js', {
+                  scope: './'
+                })
+                .then(registration => {
+                  console.log('Service Worker 注册成功，作用域为:', registration.scope);
+                })
+                .catch(error => {
+                  console.warn('Service Worker 注册失败:', error);
+                  // 这个错误在开发环境中是可以接受的，不会影响应用功能
+                });
+              } else {
+                console.log('文档状态不适合注册Service Worker，跳过注册');
+              }
+            } catch (e) {
+              // 静默处理异常，不向用户显示错误
+              console.debug('Service Worker注册异常:', e);
+            }
+          }, 1000); // 延迟1秒执行
+        });
+      }
+    </script>
+    </body>
+</html>
