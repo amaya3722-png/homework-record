@@ -25,7 +25,10 @@ DEEPSEEK_API_KEY = os.environ.get("DEEPSEEK_API_KEY", "")
 GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN", "")
 GITHUB_REPO = os.environ.get("GITHUB_REPO", "amaya3722-png/homework-record")
 REPO_URL = f"https://{GITHUB_TOKEN}@github.com/{GITHUB_REPO}.git" if GITHUB_TOKEN else ""
-WORK_DIR = Path(os.environ.get("WORK_DIR", "/tmp/homework-record"))
+
+# GitHub Actions 中 repo 已 checkout，SKIP_GIT_CLONE=1 直接用当前目录
+SKIP_GIT_CLONE = os.environ.get("SKIP_GIT_CLONE", "") == "1"
+WORK_DIR = Path.cwd() if SKIP_GIT_CLONE else Path(os.environ.get("WORK_DIR", "/tmp/homework-record"))
 
 # ============ AI Prompt ============
 SYSTEM_PROMPT = """你是一个小学作业整理助手。用户会提供一段文字（通常是老师发的作业通知），请从中提取作业信息并返回严格的JSON格式。
@@ -293,19 +296,19 @@ def main():
         tasks_str = ", ".join(f"{t['title']}({t.get('estimatedMinutes', '?')}min)" for t in s["tasks"])
         print(f"  {s['name']}: {tasks_str}")
 
-    # Step 2: 拉取仓库
-    if not clone_or_pull_repo():
-        sys.exit(1)
-
-    # Step 3: 更新 data.json
-    update_data_json(parsed)
-
-    # Step 4: 提交推送
-    if not git_commit_and_push(parsed.get("date", target_date)):
-        sys.exit(1)
-
-    print("[SUCCESS] 作业已更新，约 30 秒后线上生效")
-    print(f"  https://amaya3722-png.github.io/homework-record/")
+    if SKIP_GIT_CLONE:
+        # GitHub Actions: repo 已 checkout，直接改 + 提交
+        update_data_json(parsed)
+        print("[SUCCESS] data.json 已更新，commit/push 由 workflow 接管")
+    else:
+        # 独立运行模式：自己 clone + push
+        if not clone_or_pull_repo():
+            sys.exit(1)
+        update_data_json(parsed)
+        if not git_commit_and_push(parsed.get("date", target_date)):
+            sys.exit(1)
+        print("[SUCCESS] 作业已更新，约 30 秒后线上生效")
+        print(f"  https://amaya3722-png.github.io/homework-record/")
 
 
 if __name__ == "__main__":

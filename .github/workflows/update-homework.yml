@@ -20,7 +20,18 @@ jobs:
       - name: Parse and update homework
         env:
           DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+          SKIP_GIT_CLONE: '1'
         run: |
           python3 scripts/update_homework.py "${{ github.event.client_payload.text }}"
 
-      # 脚本已经做了 git push，这里不需要额外操作
+      - name: Commit and push
+        run: |
+          git config user.name "Hermes Bot"
+          git config user.email "hermes@local"
+          git add data.json
+          if git diff --cached --quiet; then
+            echo "No changes, skipping push"
+          else
+            git commit -m "Update homework (${{ github.event.client_payload.text | truncate: 50 }})"
+            git push origin main
+          fi
