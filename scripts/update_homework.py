@@ -47,9 +47,6 @@ def call_deepseek(text, target_date):
         print("[ERROR] DEEPSEEK_API_KEY not set")
         return None
 
-    import urllib.request
-    import urllib.error
-
     user_message = "Parse this homework notice:\n\n" + text + "\n\nTarget date: " + target_date
 
     body = json.dumps({
@@ -59,29 +56,41 @@ def call_deepseek(text, target_date):
             {"role": "system", "content": SYSTEM_PROMPT},
             {"role": "user", "content": user_message}
         ]
-    }).encode("utf-8")
+    })
 
-    req = urllib.request.Request(
-        "https://api.deepseek.com/chat/completions",
-        data=body,
-        headers={
-            "Content-Type": "application/json",
-            "Authorization": "Bearer " + DEEPSEEK_API_KEY
-        }
+    # Write body to temp file to avoid encoding issues
+    tmp_file = "/tmp/hw_body.json"
+    with open(tmp_file, "w", encoding="utf-8") as f:
+        f.write(body)
+
+    result = subprocess.run(
+        ["curl", "-s", "-m", "60",
+         "-H", "Content-Type: application/json",
+         "-H", "Authorization: Bearer " + DEEPSEEK_API_KEY,
+         "-d", "@" + tmp_file,
+         "https://api.deepseek.com/chat/completions"],
+        capture_output=True, text=True, timeout=65
     )
 
     try:
-        with urllib.request.urlopen(req, timeout=60) as resp:
-            data = json.loads(resp.read().decode("utf-8"))
-            content = data["choices"][0]["message"]["content"]
-            return parse_llm_response(content)
-    except urllib.error.HTTPError as e:
-        print("[ERROR] DeepSeek HTTP " + str(e.code) + ": " + e.reason)
-        body_text = e.read().decode("utf-8", errors="replace")[:200]
-        print("  " + body_text)
+        os.remove(tmp_file)
+    except:
+        pass
+
+    if result.returncode != 0:
+        print("[ERROR] curl failed: " + result.stderr[:200])
         return None
-    except Exception as e:
-        print("[ERROR] " + str(e))
+
+    try:
+        data = json.loads(result.stdout)
+        if "choices" not in data or len(data["choices"]) == 0:
+            print("[ERROR] Unexpected API response: " + result.stdout[:200])
+            return None
+        content = data["choices"][0]["message"]["content"]
+        return parse_llm_response(content)
+    except json.JSONDecodeError as e:
+        print("[ERROR] JSON decode failed: " + str(e))
+        print("  Response: " + result.stdout[:200])
         return None
 
 
