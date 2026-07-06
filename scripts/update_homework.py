@@ -93,8 +93,11 @@ def parse_response(content):
         if "subjects" not in parsed or not isinstance(parsed["subjects"], list):
             raise ValueError("Missing subjects array")
         for subj in parsed["subjects"]:
-            if "name" not in subj or "tasks" not in subj:
+            if "tasks" not in subj:
                 raise ValueError(f"Subject format: {subj}")
+            # AI sometimes returns "subject" instead of "name"
+            if "name" not in subj:
+                subj["name"] = subj.get("subject", "unknown")
         if "date" not in parsed:
             parsed["date"] = datetime.now().strftime("%Y-%m-%d")
         return parsed
