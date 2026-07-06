@@ -1,4 +1,33 @@
 {
-  "updated": "2026-07-05T12:00:00+08:00",
-  "entries": {}
+  "updated": "2026-07-06T08:34:00+08:00",
+  "entries": {
+    "2026-07-06": {
+      "subjects": [
+        {
+          "name": "语文",
+          "tasks": [
+            {"title": "背诵静夜思，家长签字", "estimatedMinutes": 15}
+          ]
+        },
+        {
+          "name": "数学",
+          "tasks": [
+            {"title": "课本P32第3-5题", "estimatedMinutes": 15}
+          ]
+        },
+        {
+          "name": "英语",
+          "tasks": [
+            {"title": "Unit3单词抄写3遍", "estimatedMinutes": 10}
+          ]
+        },
+        {
+          "name": "体育",
+          "tasks": [
+            {"title": "跳绳100个", "estimatedMinutes": 10}
+          ]
+        }
+      ]
+    }
+  }
 }

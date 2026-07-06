@@ -1,15 +1,7 @@
 #!/usr/bin/env python3
 """
-Hermes Homework Bot
-
-用法:
-    python update_homework.py "语文：背诵《静夜思》 数学：课本P32第3-5题"
-    python update_homework.py --date 2026-07-06 "明天的作业：..."
-
-环境变量:
-    DEEPSEEK_API_KEY   DeepSeek API Key
-    GITHUB_TOKEN       GitHub PAT (standalone mode)
-    SKIP_GIT_CLONE     设为 1 则跳过 git clone/push（GitHub Actions 模式）
+Hermes Homework Bot - Update data.json from wechat homework messages.
+Usage: python update_homework.py "homework text"
 """
 
 import os
@@ -20,27 +12,34 @@ import re
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
 
-# ============ 配置 ============
+# Config
 DEEPSEEK_API_KEY = os.environ.get("DEEPSEEK_API_KEY", "")
 GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN", "")
 GITHUB_REPO = os.environ.get("GITHUB_REPO", "amaya3722-png/homework-record")
-REPO_URL = "https://x-access-token:{}@github.com/{}".format(GITHUB_TOKEN, GITHUB_REPO) if GITHUB_TOKEN else ""
+REPO_URL = "https://x-access-token:" + GITHUB_TOKEN + "@github.com/" + GITHUB_REPO if GITHUB_TOKEN else ""
 SKIP_GIT_CLONE = os.environ.get("SKIP_GIT_CLONE", "") == "1"
 WORK_DIR = Path.cwd() if SKIP_GIT_CLONE else Path(os.environ.get("WORK_DIR", "/tmp/homework-record"))
 
-# ============ AI System Prompt ============
-SYSTEM_PROMPT = """你是小学作业整理助手。从家长消息中提取作业，返回结构化JSON。
-
-规则:
-1. date: 推断日期，默认用提供的日期。
-2. dayOfWeek: 根据日期计算，中文输出如"星期一"。
-3. 学科名用中文: 语文、数学、英语、科学、道法、美术、音乐、体育、劳动、信息、书法等。
-4. 每科含 tasks 数组，每项有 title 和 estimatedMinutes。
-5. title 用中文，保留原文关键信息（页码、章节）。
-6. estimatedMinutes 小学生标准: 练字10-15, 口算10-15, 练习册15-20, 阅读15-20, 试卷30-40, 作文25-30, 预习10-15, 手工20-30, 体育10-20, 默认15。
-
-只返回JSON，不要额外文字:
-{"date":"YYYY-MM-DD","dayOfWeek":"星期一","subjects":[{"name":"语文","tasks":[{"title":"背诵《静夜思》","estimatedMinutes":15}]}]}"""
+SYSTEM_PROMPT = (
+    "You are a homework assistant for Chinese elementary school students.\n"
+    "Extract homework from a parent's message and return JSON.\n"
+    "IMPORTANT: Output subject names and task titles in Chinese only.\n"
+    "Do NOT translate to English. Preserve original Chinese text.\n"
+    "\n"
+    "Rules:\n"
+    "1. date: infer from text, default to today (YYYY-MM-DD)\n"
+    "2. dayOfWeek: compute from date\n"
+    "3. Subject names in Chinese only (not English)\n"
+    "4. Task titles in Chinese, keep original phrasing\n"
+    "5. estimatedMinutes: dictation 10-15, math 10-15, workbook 15-20,\n"
+    "   reading 15-20, exam 30-40, essay 25-30, preview 10-15,\n"
+    "   crafts 20-30, sports 10-20, default 15\n"
+    "\n"
+    "Return ONLY JSON, no markdown, no extra text:\n"
+    '{"date":"YYYY-MM-DD","dayOfWeek":"...","subjects":[\n'
+    '  {"name":"...","tasks":[{"title":"...","estimatedMinutes":15}]}\n'
+    ']}\n'
+)
 
 
 def call_deepseek(text, target_date):
@@ -51,7 +50,7 @@ def call_deepseek(text, target_date):
     import urllib.request
     import urllib.error
 
-    user_message = "Parse this homework notice:\n\n{}\n\nTarget date: {}".format(text, target_date)
+    user_message = "Parse this homework notice:\n\n" + text + "\n\nTarget date: " + target_date
 
     body = json.dumps({
         "model": "deepseek-chat",
@@ -77,12 +76,12 @@ def call_deepseek(text, target_date):
             content = data["choices"][0]["message"]["content"]
             return parse_llm_response(content)
     except urllib.error.HTTPError as e:
-        print("[ERROR] DeepSeek API HTTP {}: {}".format(e.code, e.reason))
-        body_text = e.read().decode("utf-8")[:200]
+        print("[ERROR] DeepSeek HTTP " + str(e.code) + ": " + e.reason)
+        body_text = e.read().decode("utf-8", errors="replace")[:200]
         print("  " + body_text)
         return None
     except Exception as e:
-        print("[ERROR] {}".format(e))
+        print("[ERROR] " + str(e))
         return None
 
 
@@ -120,35 +119,6 @@ def parse_llm_response(content):
         return None
 
 
-def clone_or_pull_repo():
-    if not REPO_URL:
-        print("[ERROR] GITHUB_TOKEN not set")
-        return False
-
-    if WORK_DIR.exists() and (WORK_DIR / ".git").exists():
-        print("[GIT] Pulling " + str(WORK_DIR) + "...")
-        result = subprocess.run(
-            ["git", "-C", str(WORK_DIR), "pull", "origin", "main"],
-            capture_output=True, text=True, timeout=30
-        )
-        if result.returncode != 0:
-            print("[ERROR] git pull failed: " + result.stderr)
-            return False
-        print("  " + result.stdout.strip())
-    else:
-        print("[GIT] Cloning to " + str(WORK_DIR) + "...")
-        WORK_DIR.parent.mkdir(parents=True, exist_ok=True)
-        result = subprocess.run(
-            ["git", "clone", "--branch", "main", REPO_URL, str(WORK_DIR)],
-            capture_output=True, text=True, timeout=60
-        )
-        if result.returncode != 0:
-            print("[ERROR] git clone failed: " + result.stderr)
-            return False
-
-    return True
-
-
 def update_data_json(parsed_data):
     data_file = WORK_DIR / "data.json"
 
@@ -184,40 +154,7 @@ def update_data_json(parsed_data):
     with open(data_file, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
 
-    print("[DATA] Updated {} ({}) subjects)".format(date_key, len(parsed_data["subjects"])))
-
-
-def git_commit_and_push(date_key):
-    result = subprocess.run(
-        ["git", "-C", str(WORK_DIR), "add", "data.json"],
-        capture_output=True, text=True, timeout=10
-    )
-    if result.returncode != 0:
-        print("[ERROR] git add failed: " + result.stderr)
-        return False
-
-    result = subprocess.run(
-        ["git", "-C", str(WORK_DIR), "commit", "-m", "Update homework for " + date_key],
-        capture_output=True, text=True, timeout=10
-    )
-    if "nothing to commit" in result.stdout or "nothing to commit" in result.stderr:
-        print("[GIT] No changes, skipping push")
-        return True
-
-    if result.returncode != 0:
-        print("[ERROR] git commit failed: " + result.stderr)
-        return False
-
-    result = subprocess.run(
-        ["git", "-C", str(WORK_DIR), "push", "origin", "main"],
-        capture_output=True, text=True, timeout=30
-    )
-    if result.returncode != 0:
-        print("[ERROR] git push failed: " + result.stderr)
-        return False
-
-    print("[GIT] Pushed to GitHub")
-    return True
+    print("[DATA] Updated " + date_key + " (" + str(len(parsed_data["subjects"])) + " subjects)")
 
 
 def main():
@@ -243,27 +180,20 @@ def main():
     print("[INPUT] Date: " + target_date)
     print("[INPUT] Text: " + text[:200] + ("..." if len(text) > 200 else ""))
 
-    print("[AI] Parsing homework...")
+    print("[AI] Parsing...")
     parsed = call_deepseek(text, target_date)
     if not parsed:
         print("[FAIL] AI parsing failed")
         sys.exit(1)
 
-    print("[AI] Parsed: {} subjects, date {}".format(len(parsed["subjects"]), parsed.get("date", target_date)))
+    print("[AI] Parsed: " + str(len(parsed["subjects"])) + " subjects, date " + parsed.get("date", target_date))
     for s in parsed["subjects"]:
-        tasks_str = ", ".join("{} ({}min)".format(t["title"], t.get("estimatedMinutes", "?")) for t in s["tasks"])
+        tasks_str = ", ".join(t["title"] + " (" + str(t.get("estimatedMinutes", "?")) + "min)" for t in s["tasks"])
         print("  " + s["name"] + ": " + tasks_str)
 
-    if SKIP_GIT_CLONE:
-        update_data_json(parsed)
-        print("[SUCCESS] data.json updated, commit/push handled by workflow")
-    else:
-        if not clone_or_pull_repo():
-            sys.exit(1)
-        update_data_json(parsed)
-        if not git_commit_and_push(parsed.get("date", target_date)):
-            sys.exit(1)
-        print("[SUCCESS] Homework updated, ~30s until live")
+    update_data_json(parsed)
+    print("[SUCCESS] data.json updated")
+    if not SKIP_GIT_CLONE:
         print("  https://amaya3722-png.github.io/homework-record/")
 
 
