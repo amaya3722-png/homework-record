@@ -25,7 +25,9 @@ SYSTEM_PROMPT = (
     'reading/reciting 15-20, exam 30-40, essay 25-30, preview 10-15,\n'
     'crafts 20-30, sports 10-20, default 15.\n'
     'Return ONLY the JSON object, no markdown, no extra text:\n'
-    '{"date":"YYYY-MM-DD","dayOfWeek":"...","subjects":[...]}\n'
+    '{"date":"YYYY-MM-DD","dayOfWeek":"...","subjects":[\n'
+    '  {"name":"Chinese","tasks":[{"title":"task title","estimatedMinutes":15}]}\n'
+    ']}\n'
 )
 
 
