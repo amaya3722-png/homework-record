@@ -1,5 +1,5 @@
 {
-  "updated": "2026-07-07T08:24:01.466483+08:00",
+  "updated": "2026-07-07T08:34:55.336811+08:00",
   "entries": {
     "2026-07-06": {
       "subjects": [
@@ -75,6 +75,10 @@
           "tasks": [
             {
               "title": "跳绳100个",
+              "estimatedMinutes": 10
+            },
+            {
+              "title": "跳绳101个",
               "estimatedMinutes": 10
             }
           ]
