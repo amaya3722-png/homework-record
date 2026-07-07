@@ -1,5 +1,5 @@
 {
-  "updated": "2026-07-06T22:42:10.735202+08:00",
+  "updated": "2026-07-07T08:08:06.072188+08:00",
   "entries": {
     "2026-07-06": {
       "subjects": [
@@ -45,6 +45,37 @@
             {
               "title": "观察蚂蚁搬家，写观察日记",
               "estimatedMinutes": 25
+            }
+          ]
+        }
+      ]
+    },
+    "2026-07-07": {
+      "subjects": [
+        {
+          "name": "语文",
+          "tasks": [
+            {
+              "title": "背诵静夜思",
+              "estimatedMinutes": 15
+            }
+          ]
+        },
+        {
+          "name": "数学",
+          "tasks": [
+            {
+              "title": "课本P32第3-5题",
+              "estimatedMinutes": 15
+            }
+          ]
+        },
+        {
+          "name": "体育",
+          "tasks": [
+            {
+              "title": "跳绳100个",
+              "estimatedMinutes": 10
             }
           ]
         }
