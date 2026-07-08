@@ -1,5 +1,5 @@
 {
-  "updated": "2026-07-09T06:58:01.949148+08:00",
+  "updated": "2026-07-09T07:00:04.941255+08:00",
   "entries": {
     "2026-07-06": {
       "subjects": [
@@ -93,6 +93,28 @@
             {
               "title": "练习生字100遍",
               "estimatedMinutes": 20
+            },
+            {
+              "title": "背诵静夜思",
+              "estimatedMinutes": 15
+            }
+          ]
+        },
+        {
+          "name": "数学",
+          "tasks": [
+            {
+              "title": "课本P32第3-5题",
+              "estimatedMinutes": 15
+            }
+          ]
+        },
+        {
+          "name": "体育",
+          "tasks": [
+            {
+              "title": "跳绳101个",
+              "estimatedMinutes": 10
             }
           ]
         }
