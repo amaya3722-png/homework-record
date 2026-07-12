@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Homework parser — called by Hermes bot / push_homework.sh.
+Homework and daily-focus parser — called by Hermes bot / push_homework.sh.
 Usage: python3 scripts/update_homework.py "text"  or  python3 scripts/update_homework.py --date YYYY-MM-DD "text"
 Reads: data.json (from cwd), DEEPSEEK_API_KEY (from env)
 Writes: data.json (to cwd)
@@ -18,15 +18,17 @@ DEEPSEEK_API_KEY = os.environ.get("DEEPSEEK_API_KEY", "")
 WORK_DIR = Path.cwd()
 
 SYSTEM_PROMPT = (
-    'You are a homework RECORDER, NOT a teacher. Your ONLY job is to parse and record.\n'
+    'You are a TASK RECORDER, NOT a teacher or coach. Your ONLY job is to parse and record.\n'
     'CRITICAL RULES:\n'
     '1. NEVER ask questions, NEVER solve problems, NEVER explain, NEVER add commentary.\n'
     '2. Record task titles EXACTLY as the parent wrote them - even if incomplete or ambiguous.\n'
     '3. If a task says "课本P32第3-5题" with no grade/version, just record it as-is.\n'
-    '4. Subject names and task titles MUST be in Chinese.\n'
-    '5. estimatedMinutes: dictation 10-15, arithmetic 10-15, workbook 15-20,\n'
+    '4. Subject/category names and task titles MUST be in Chinese.\n'
+    '5. For school homework, keep the original subject. For adult daily-focus messages,\n'
+    '   classify each task as 主线任务、找工作、家庭、娱乐 or 其他.\n'
+    '6. estimatedMinutes: dictation 10-15, arithmetic 10-15, workbook 15-20,\n'
     '   reading/reciting 15-20, exam 30-40, essay 25-30, preview 10-15,\n'
-    '   crafts 20-30, sports 10-20, default 15.\n'
+    '   crafts 20-30, sports 10-20; adult focus default 45 and may range 15-120.\n'
     'Return ONLY a JSON object. No markdown, no explanation, NOTHING else:\n'
     '{"date":"YYYY-MM-DD","dayOfWeek":"...","subjects":[\n'
     '  {"name":"subject","tasks":[{"title":"task exactly as written","estimatedMinutes":15}]}\n'
@@ -39,7 +41,7 @@ def call_deepseek(text, target_date):
         print("[ERROR] DEEPSEEK_API_KEY not set")
         return None
 
-    user_message = f"Parse this homework notice:\n\n{text}\n\nTarget date: {target_date}"
+    user_message = f"Parse this homework or daily-focus notice:\n\n{text}\n\nTarget date: {target_date}"
 
     body = json.dumps({
         "model": "deepseek-chat",
@@ -160,7 +162,7 @@ def main():
 
     text = text.strip()
     if not text:
-        print("Usage: python3 scripts/update_homework.py [--date YYYY-MM-DD] <homework text>")
+        print("Usage: python3 scripts/update_homework.py [--date YYYY-MM-DD] <homework or daily-focus text>")
         sys.exit(1)
 
     print(f"[INPUT] {target_date}: {text[:150]}{'...' if len(text) > 150 else ''}")
