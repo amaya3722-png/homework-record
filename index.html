@@ -110,6 +110,105 @@
                 background-color: #eff6ff;
             }
         }
+        /* ── 时间块排程样式 ── */
+        .time-slot {
+            min-height: 52px;
+            border: 2px dashed #e5e7eb;
+            border-radius: 10px;
+            padding: 8px 12px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            transition: border-color 0.2s, background-color 0.2s, box-shadow 0.2s;
+            cursor: default;
+            position: relative;
+        }
+        .time-slot.drag-over {
+            border-color: #4CAF50;
+            background-color: #E8F5E9;
+            box-shadow: 0 0 0 3px rgba(76,175,80,0.2);
+        }
+        .time-slot.filled {
+            border-style: solid;
+            border-color: #d1d5db;
+            background: #fff;
+        }
+        .time-slot-label {
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: #9CA3AF;
+            min-width: 42px;
+            flex-shrink: 0;
+        }
+        .time-slot-content {
+            flex: 1;
+            min-width: 0;
+        }
+        .time-slot-empty-text {
+            font-size: 0.75rem;
+            color: #d1d5db;
+            font-style: italic;
+        }
+        .task-card-dragging {
+            opacity: 0.5;
+            transform: scale(0.95);
+        }
+        .drag-preview {
+            position: fixed;
+            z-index: 9999;
+            pointer-events: none;
+            opacity: 0.85;
+            transform: rotate(2deg);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+            background: #fff;
+            border-radius: 10px;
+            padding: 8px 14px;
+            font-size: 0.875rem;
+            font-weight: 500;
+            white-space: nowrap;
+            max-width: min(320px, 82vw);
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .time-slot.filled { min-height: 76px; padding-left: 14px; }
+        .time-slot.completed { opacity: .72; background: #f3faf3; }
+        .time-block-color { position:absolute; left:0; top:7px; bottom:7px; width:4px; border-radius:0 4px 4px 0; }
+        .time-block-head { display:flex; align-items:center; gap:8px; }
+        .time-block-copy { flex:1; min-width:0; display:flex; flex-direction:column; }
+        .time-block-copy strong { font-size:.875rem; color:#212121; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+        .time-block-copy small { color:#9ca3af; font-size:.7rem; }
+        .time-block-check input { width:18px; height:18px; accent-color:#4CAF50; }
+        .time-block-remove { width:30px; height:30px; border:0; border-radius:50%; background:transparent; color:#9ca3af; font-size:20px; }
+        .mini-pomo-open { margin-top:7px; border:0; background:#e8f5e9; color:#2e7d32; padding:6px 10px; border-radius:999px; font-size:.75rem; font-weight:600; }
+        .mini-timer { margin-top:7px; padding:8px 10px; border-radius:10px; background:#fff4f2; display:flex; align-items:center; justify-content:space-between; gap:8px; }
+        .mini-timer.rest { background:#fff8e6; }
+        .mini-timer > div:first-child { display:flex; align-items:center; gap:8px; }
+        .mini-timer-phase { color:#6b7280; font-size:.72rem; }
+        .mini-timer-value { font-variant-numeric:tabular-nums; color:#e53935; font-size:1rem; }
+        .mini-timer.rest .mini-timer-value { color:#ef8f00; }
+        .mini-timer-actions { display:flex; gap:6px; }
+        .mini-timer-actions button { border:0; padding:5px 9px; border-radius:8px; font-size:.72rem; background:#4CAF50; color:white; }
+        .mini-timer-actions button + button { background:#f1f3f4; color:#555; }
+        .time-block-assigned-badge { display:inline-flex; margin-left:7px; padding:1px 6px; border-radius:999px; color:#2e7d32; background:#e8f5e9; font-size:.65rem; text-decoration:none; vertical-align:middle; }
+        .task-scheduled { border-left:3px solid #4CAF50; }
+        #taskList.task-pool-drop { outline:2px dashed #4CAF50; outline-offset:6px; border-radius:12px; background:rgba(76,175,80,.05); }
+        .time-slot.just-dropped { animation:time-block-flash .7s ease-out; }
+        @keyframes time-block-flash { 0%{box-shadow:0 0 0 4px rgba(76,175,80,.45)} 100%{box-shadow:none} }
+        .life-sync-status { display:flex; align-items:center; gap:8px; margin:0 0 12px; padding:9px 11px; border-radius:10px; background:#fff; color:#64748b; font-size:.75rem; box-shadow:0 1px 4px rgba(0,0,0,.05); }
+        .life-sync-dot { width:8px; height:8px; border-radius:50%; background:#94a3b8; flex:none; }
+        .life-sync-message { flex:1; }
+        .life-sync-status button { border:0; color:#2e7d32; background:#e8f5e9; border-radius:999px; padding:5px 9px; font-weight:600; }
+        .life-sync-status button:disabled { opacity:.45; }
+        .life-sync-ready .life-sync-dot { background:#4CAF50; }
+        .life-sync-syncing .life-sync-dot { background:#f59e0b; animation:pulse-dot 1.2s infinite; }
+        .life-sync-error .life-sync-dot { background:#ef4444; }
+        .time-block-toast { position:fixed; top:76px; left:50%; transform:translateX(-50%); z-index:9999; max-width:88vw; padding:10px 16px; border-radius:10px; background:#1f2937; color:#fff; box-shadow:0 10px 25px rgba(0,0,0,.2); font-size:.85rem; }
+        @media (max-width:640px) {
+            .time-slot { align-items:flex-start; }
+            .time-slot-label { padding-top:6px; }
+            .mini-timer { align-items:stretch; flex-direction:column; }
+            .mini-timer-actions button { min-height:34px; }
+        }
     </style>
 </head>
 <body class="bg-gray-50 min-h-screen text-textPrimary font-sans">
@@ -310,6 +409,17 @@
             <!-- 任务列表 -->
             <div id="taskList" class="space-y-3">
                 <!-- 任务卡片将通过JavaScript动态生成 -->
+            </div>
+        </section>
+
+        <!-- ★ 时间块排程（新增） -->
+        <section id="timeBlockSection" class="mb-4">
+            <div class="flex items-center justify-between mb-3">
+                <h2 class="text-base font-medium">⏱ 时间轴排程</h2>
+                <span class="text-xs text-textSecondary">拖拽任务到时间格</span>
+            </div>
+            <div id="timeBlockGrid" class="space-y-1.5">
+                <!-- 时间格子由 time-block.js 动态生成 -->
             </div>
         </section>
 
@@ -1152,6 +1262,8 @@
     <script src="js/dataLoader.js"></script>
     <script src="js/app.js"></script>
     <script src="js/ai-input.js"></script>
+    <script src="js/time-block.js"></script>
+    <script src="js/life-focus-sync.js"></script>
 <!-- PWA Service Worker 注册 -->
     <script>
       // 检查浏览器是否支持Service Worker
