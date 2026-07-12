@@ -3470,7 +3470,7 @@ function renderTaskList(filter = 'all') {
             </div>
             <div class="space-y-2">
                 ${subjectTasks.map(task => `
-                    <div class="bg-white rounded-xl shadow-card p-4 card-hover" draggable="true" data-task-id="${task.id}">
+                    <div class="bg-white rounded-xl shadow-card p-4 card-hover">
                         <div class="flex items-start justify-between mb-2">
                             <div class="flex items-center flex-1">
                                 <input type="checkbox" class="w-5 h-5 rounded-full border-2 mr-3 accent-primary" ${task.status === 'completed' ? 'checked' : ''} onchange="toggleTaskStatus(${task.id})">
@@ -3549,11 +3549,6 @@ function renderTaskList(filter = 'all') {
         
         taskListEl.appendChild(subjectEl);
     });
-
-    // 绑定时间块拖拽事件
-    if (typeof TimeBlock !== 'undefined' && TimeBlock.bindTaskDragEvents) {
-        TimeBlock.bindTaskDragEvents();
-    }
 }
 
 // 渲染日历

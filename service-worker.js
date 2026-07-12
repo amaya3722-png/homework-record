@@ -1,22 +1,19 @@
 // 缓存名称和版本
-const CACHE_NAME = 'homework-record-v2-time-block';
+const CACHE_NAME = 'homework-record-v1';
 
 // 需要缓存的资源列表
 const urlsToCache = [
-  './',
-  './index.html',
-  './js/app.js',
-  './js/ai-input.js',
-  './js/time-block.js',
-  './js/life-focus-sync.js',
-  './js/mockData.js',
-  './static/images/favicon/apple-touch-icon.png',
-  './static/images/favicon/favicon-32x32.png',
-  './static/images/favicon/favicon-16x16.png',
-  './static/images/favicon/site.webmanifest',
-  './static/images/favicon/android-chrome-192x192.png',
-  './static/images/favicon/android-chrome-512x512.png',
-  './static/images/favicon/favicon.ico',
+  '/',
+  '/index.html',
+  '/js/app.js',
+  '/js/mockData.js',
+  '/static/images/favicon/apple-touch-icon.png',
+  '/static/images/favicon/favicon-32x32.png',
+  '/static/images/favicon/favicon-16x16.png',
+  '/static/images/favicon/site.webmanifest',
+  '/static/images/favicon/android-chrome-192x192.png',
+  '/static/images/favicon/android-chrome-512x512.png',
+  '/static/images/favicon/favicon.ico',
   'https://cdn.tailwindcss.com',
   'https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css',
   'https://cdn.jsdelivr.net/npm/chart.js@4.4.8/dist/chart.umd.min.js'
@@ -53,11 +50,6 @@ self.addEventListener('activate', (event) => {
 
 // 处理资源请求
 self.addEventListener('fetch', (event) => {
-  // API 数据始终走网络，避免企微任务和番茄钟状态被离线缓存覆盖。
-  if (new URL(event.request.url).pathname.startsWith('/api/')) {
-    event.respondWith(fetch(event.request));
-    return;
-  }
   event.respondWith(
     caches.match(event.request)
       .then((response) => {
@@ -88,7 +80,7 @@ self.addEventListener('fetch', (event) => {
           .catch(() => {
             // 如果是HTML请求且网络请求失败，返回缓存的首页
             if (event.request.headers.get('accept').includes('text/html')) {
-              return caches.match('./index.html');
+              return caches.match('/index.html');
             }
           });
       })
