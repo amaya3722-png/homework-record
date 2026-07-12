@@ -53,8 +53,9 @@ self.addEventListener('activate', (event) => {
 
 // 处理资源请求
 self.addEventListener('fetch', (event) => {
-  // API 数据始终走网络，避免企微任务和番茄钟状态被离线缓存覆盖。
-  if (new URL(event.request.url).pathname.startsWith('/api/')) {
+  // 动态任务数据始终走网络，避免企微刚推送的 data.json 被旧缓存覆盖。
+  const requestPath = new URL(event.request.url).pathname;
+  if (requestPath.startsWith('/api/') || requestPath.endsWith('/data.json')) {
     event.respondWith(fetch(event.request));
     return;
   }
